@@ -1,7 +1,7 @@
 # Analyzing US Wildfire incidents
 Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 
-# Abstract
+## Abstract
 This SQLite dataset includes Wildfires incident reports filed by various federal, state, and local fire organizations from period 2011 to 2015 obtained from Kaggle [1.88 Million US Wildfires (https://www.kaggle.com/datasets/rtatman/188-million-us-wildfires) 
 
 
