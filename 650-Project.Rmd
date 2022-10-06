@@ -1,0 +1,498 @@
+---
+title: |
+  | \LARGE \bf{Analyzing US Wildfire incidents}
+  |
+  | by
+  |
+  | Radhika Vijayaraghavan
+  | netID# zg4894
+  |
+  | Instructor: Dr.Eric Fox
+  |
+  | STAT 650, California State University East Bay
+  |
+  | Fall 2022
+output:
+  pdf_document: null
+  html_document:
+    df_print: paged
+header-includes:
+- \usepackage{titling}
+- \usepackage{times}
+- \usepackage{sectsty}
+- \sectionfont{\large} 
+- \usepackage{titlesec}
+- \pretitle{\begin{center}\LARGE\includegraphics[width=14cm]{csueb logo.jpeg}\\[\bigskipamount]}
+- \posttitle{\end{center}}
+- \usepackage{ragged2e}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+---
+
+```{r setup, warning = FALSE, echo = FALSE, include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+library(rvest)
+library(janitor)
+library(readr)
+library(lubridate)
+library(tidygeocoder)
+library(chron)
+library(stringr)
+library(revgeo)
+library(forcats)
+library(leaflet)
+library(startR)
+```
+
+\break
+\justifying
+\tableofcontents
+\break
+\newpage
+\fontsize{12}{22}
+\allsectionsfont{\centering}
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+
+```{r, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(options(dplyr.summarise.inform = FALSE))
+
+```
+
+# Abstract
+
+This dataset includes Wildfires incident reports from period 2011 to 2015. These reports have been filed by various federal, state, and local fire organizations. 
+\
+
+Evidently, wildfires create huge ecological and economic damage to any country while endangering animal lives and human lives. Fast detection is a key element for controlling such events. In California alone, we observe some of the largest wildfires in state history. 
+\
+
+The objective of this project is to apply the learnings/techniques taught in STAT 650 course to use R for data analysis and visualization to provide useful insights on wildfires, its causes and behavior. Effort has been made to use concepts of Data Wrangling, Data Transformation, Model building, Spatial visualization. This helps to make useful recommendations to increase public safety, minimize economic damage from future wildfires. My findings show the regions/sub regions that are most affected and the impact of seasons on wildfires. 
+\
+
+To clean the raw data set obtained from the SQLite database, data wrangling techniques were applied. `discovery_date, cont_date` were in Julian format(float) and `discovery_time, cont_time` were in military format. Measures have been taken to change them to R Date format utilizing `Lubridate` package. The time taken to contain the fire was added using the contained_date, discovery date variables. `season` was also added as a new column by utilizing functions in `forcats` package. Special characters rows and NA rows have been filtered out. Majority of the Tidy data functions and techniques learnt in this course have been useful to apply in this exercise. Data transformation have been performed wherever necessary for model building and visualization.
+
+\newpage
+# Data Description 
+
+## a. Data Source
+The source of this data set is Kaggle(1.88 Million US Wildfires). This dataset is an SQlite spatial database of wildfire incidents that occurred in the United States from 2011 to 2015. Additionally, utilized SQLite database to extract related data sets of interest to investigate further in this exercise.
+
+
+## b. Data Description
+The cleaned data set consist of 188,017 observations on the following 16 variables. 4 new variables have been added through data wrangling. Belo are the description of all the variables. Apart from this data set, `states` data set from R was used to perform data transformation.
+\
+
+- **fire_year** = Calendar year in which the fire was discovered or confirmed to exist.
+- **discovery_date** = Date on which the fire was discovered or confirmed to exist. 
+- **discovery_time** = Time of day that the fire was discovered or confirmed to exist.
+- **Stat_cause_descr** = Description of the (statistical) cause of the fire. 
+- **fire_size** = Estimate of Acres of land burnt within the final perimeter of the fire. 
+- **fire_size_class** = Code for fire size based on the number of acres within the final fire perimeter expenditures (A=greater than 0 but less than or equal to 0.25 acres, B=0.26-9.9 acres, C=10.0-99.9 acres, D=100-299 acres, E=300 to 999 acres, F=1000 to 4999 acres, and G=5000+ acres) 
+- **latitude** = Latitude (NAD83) for point location of the fire (decimal degrees). 
+- **longitude** = Longitude (NAD83) for point location of the fire (decimal degrees). 
+- **owner_descr** = Name of primary owner or entity responsible for managing the land at the point of origin of the fire at the time of the incident. 
+- **cont_date** = Date on which the fire was declared contained or otherwise controlled (mm/dd/yyyy where mm=month, dd=day, and yyyy=year). 
+- **cont_time** = Time of day that the fire was declared contained or otherwise controlled (hhmm where hh=hour, mm=minutes). 
+- **county** = County, or equivalent, in which the fire burned (or originated), based on nominal designation in the fire report. 
+- **state_abb** = Two-letter code for the state in which the unit is located (or primarily affiliated). 
+
+
+* Additionally below variables were added through EDA:- 
+    + **resolved_days** - #Days taken to resolve the wildfire 
+    + **season** - Season of the year - Summer, Spring, Fall, Winter 
+    + **state_name** - Full name of the state
+    + **disc_month** - Month of the year
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+wildfires <- read_csv("wildfires.csv") %>% 
+  janitor::clean_names()
+
+wildfires
+```
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+states <- read_csv("states.csv") %>% 
+  janitor::clean_names()
+
+states
+```
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+states_tidy <- states %>% 
+  rename(state_name = state, state = code)
+
+states_tidy
+
+```
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+#'*cleaning data, added new calculated columns, converted discovery_date and cont_date from julian date format to datetime format, converted military time to standard time with hours and minutes*
+
+wildfires_normalize_date <- wildfires %>%
+  mutate(discovery_date = as.Date(discovery_date, origin = structure(-2440588, class = "Date")),
+         cont_date = as.Date(cont_date, origin = structure(-2440588, class = "Date")),
+         discovery_time = format(strptime(substr(as.POSIXct(sprintf("%04.0f", discovery_time), 
+                                  format="%H%M"), 12, 16), '%H:%M'), '%I:%M %p'),
+         cont_time = format(strptime(substr(as.POSIXct(sprintf("%04.0f", cont_time), 
+                                  format="%H%M"), 12, 16), '%H:%M'), '%I:%M %p')
+         ) %>% 
+  select(fire_year, fire_size_class, fire_size, stat_cause_descr, discovery_date, discovery_time, county, state, owner_descr, longitude, latitude, cont_date, cont_time)
+
+wildfires_normalize_date
+```
+
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+
+wildfires_with_resolved_days <- wildfires_normalize_date %>%
+  mutate(
+         resolved_days = day(seconds_to_period(difftime(strptime(paste(cont_date, cont_time), "%Y-%m-%d %I:%M %p"), strptime(paste(discovery_date, discovery_time), "%Y-%m-%d %I:%M %p"))))
+         )
+
+wildfires_with_resolved_days
+
+```
+
+
+```{r, warning = FALSE, echo=FALSE, include=FALSE}
+
+wildfires_clean <- wildfires_with_resolved_days %>% 
+  filter(!str_detect(county, "[0-9]")) %>% 
+  mutate_at(vars(1), as.integer) %>% 
+  mutate(across(c(stat_cause_descr, owner_descr),factor)) %>% 
+  mutate(county = str_to_sentence(county),  
+         disc_month = month(discovery_date, label = T),
+         wday = wday(discovery_date, label = T),
+         season = fct_collapse(disc_month, 
+                               'Spring' = month.abb[3:5],
+                               'Summer' = month.abb[6:8],
+                               'Fall' = month.abb[9:11],
+                               'Winter' = month.abb[c(12,1,2)]
+                               )
+         ) %>% 
+  drop_na()
+
+wildfires_clean
+
+```
+
+
+
+\newpage
+# Questions of Interest
+
+## Research Question 1
+
+**"Does Global warming affect the number of fires? Has the number of fires increased over the period 2011-2015?"**
+
+
+**Potential Use Case:**
+
+* With this information, we can support stakeholders in decision making - such as 
+taking preventive measures and restrict the wildfire size with the help of modern equipment in highly destructive areas. 
+
+* From this barplot, although we see an upward trend at certain years, there has been no constant increase or decrease in trend over the years 2011 to 2015. But how do we know what causes these incidents? Our next research question answers this.
+
+
+```{r, warning = FALSE, echo =FALSE, fig.align='center'}
+#'*Distribution of #Wildfires over years*
+
+fire_over_years <- wildfires_clean %>%
+  group_by(fire_year) %>% 
+  summarize(count = n()) %>% 
+  mutate(Label = paste0(count," - ",round(count / sum(count) * 100, 2), "%")) %>% 
+  ggplot(aes(x = fire_year, y = count, label = Label, fill = count)) +
+  geom_bar(stat = "identity") +
+  geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 3) + 
+  scale_fill_gradient(name = "Count of Wildfires", low="orange", high="red") +
+  #scale_y_continuous(labels = scales::label_number()) +
+  labs(x = "Year of Wildfire", y = "Count of wildfires(in thousands)") +
+  theme(aspect.ratio = 0.8, panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+#scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6))
+
+fire_over_years
+```
+
+
+
+\newpage
+## Research Question 2
+
+**"What causes the most wildfires? Which causes are associated with it?"**
+
+
+**Potential Use Case:** 
+
+* With this information, the concerned area owners(private/state) could work towards intelligent monitoring of power lines to mitigate substantial associated risks.\
+
+* In broad terms, intelligent monitoring can provide heightened awareness of power line health and events, enabling utility companies to act more quickly.\
+
+```{r, echo=FALSE, fig.align='center'}
+#Distribution of cause of fire and acres of land burnt 
+
+wildfires_clean %>% 
+  group_by(stat_cause_descr) %>%
+  summarize(
+      count = n(),
+      avg_fire_size = round(mean(fire_size, na.rm = TRUE),2)) %>% 
+  ggplot(aes(avg_fire_size, fct_reorder(stat_cause_descr, avg_fire_size), fill = avg_fire_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(name = "Count of Wildfires", low="orange", high="red") +
+  labs(x = "Average Fire size(in Acres)", y = "Cause of Wildfires")+
+  theme(aspect.ratio = 0.8, panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+\
+- Although `Debris burning` seemed to cause the highest number of wildfires in this period, the average size of fire caused by it is low. 
+
+- On the other hand, `Lightning` and `Powerlines`  i.e., fire started by electricity causes the most destruction wildfires in terms of fire size(acres of land burnt).
+
+```{r, echo=FALSE, include = FALSE}
+
+wildfires_clean_with_states <- wildfires_clean %>% 
+  inner_join(states_tidy, by = "state")
+
+wildfires_clean_with_states
+
+```
+
+\newpage
+## Research Question 3 
+
+**"Does the time taken to resolve the fire vary by region and acres burnt? Is the resolution time related to season?"**
+
+
+**Potential Use Case:** 
+
+* From the Data set, we know that the following fire sizes A to G represents the respective acres of land burnt i.e., (*A= greater than 0 acres but less than or equal to 0.25 acres, B=0.26-9.9 acres, C=10.0-99.9 acres, D=100-299 acres, E=300 to 999 acres, F=1000 to 4999 acres, G=5000+ acres*)
+    
+* From the below plot, it is interesting to note that some states such as Alaska, Orgeon, Washington have taken more days to resolve the wildfire although less area was burnt. Alarmingly, states like "Alaska" seems to have struggle resolving wildfires of any size. This should be investigated further.
+
+* It is observed that certain states have been very efficient in handling dangerous fire sizes such as size "G" in states such as Nevada, Montana. The states with the dangerous fire size "G" can learn the best practices and readiness implemented by the states that took less number of days to resolve fire type "G".
+
+* It is also possible that the wildfires of type G was extinguished soon due to temperature changes. Let's discuss this further.
+\
+\
+```{r, warning=FALSE, echo = FALSE}
+wildfires_clean_with_states %>%
+  group_by(fire_size_class, state_name) %>%       # This gives us (fire size class, state) pairs
+  summarise(avg_resolved_days = mean(resolved_days, na.rm = TRUE)) %>%
+  group_by(state_name) %>%                  # group all (fire_size_class,state) pairs by state
+  filter(n() == 7) %>%        #only selecting those that have one entry per fire size class 
+  ungroup() %>%
+  mutate(dest = reorder(state_name, avg_resolved_days)) %>%
+  ggplot(aes(x = factor(fire_size_class), y = state_name, fill = avg_resolved_days)) +
+  geom_tile() +
+  labs(x = "Fire size class(acres of land)", y = "State name", fill = "resolved_days") +
+  scale_fill_gradient(name = "Days taken to \n resolve wildfire",
+                      low="lightgoldenrod1", 
+                      high="red", 
+                      limits = c(0,NA))
+
+```
+
+- From the above result, it is also interesting to note that more destructive wildfires are reported in Southeast states of US such as Texas, Kansas, Alaska, Georgia.
+- Though we see the fire size per state and days taken to contain the wildfire, it is not clear what is causing them. Let's study this further.
+
+
+\newpage
+## Research Question 4 
+
+**"Is season related to the cause of wildfires?"**
+
+
+**Potential Use Case:** 
+
+* By analyzing the below plot, we observe that Debris burning during Spring season and Lightning during Summer season causes the most wildfires. 
+
+* It is interesting to note how `seasons` have a significant impact on the `cause of fire`. 
+
+* By this, the forest and fire agencies can plan the schedule such that there are optimal number of officers to handle the expected load of fire incidents at peak seasons/times such as below. 
+
+\
+```{r, echo=FALSE, include=FALSE}
+#Is the cause of fire related to season
+
+(oc.color <- c("yellow4", "red", "orange", "brown"))
+```
+
+
+```{r, warning= FALSE, echo=FALSE, fig.align='center'}
+#Is season related to the cause of wildfire
+ggplot(data = wildfires_clean)+
+  geom_bar(aes(x = stat_cause_descr, fill = season), position = "dodge") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1), 
+        aspect.ratio = 0.8, 
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")) + 
+  labs(x = "Causes of Wildfires", y = "Number of Wildfires(in thousands)") +
+  scale_fill_manual(values = oc.color[1:4]) +
+  theme(legend.position = "right")
+  #scale_y_continuous(labels = scales::label_number())
+
+
+```
+
+
+
+```{r, echo = FALSE, include=FALSE}
+per_state_county <- wildfires_clean_with_states %>% 
+  count(state_name,stat_cause_descr) %>%
+  mutate(state_name = tolower(state_name))
+
+per_state_county
+```
+
+
+```{r, echo = FALSE, include=FALSE}
+state_county <- wildfires_clean_with_states %>% 
+  count(state_name, county,stat_cause_descr) %>% 
+  distinct()
+
+state_county
+```
+
+
+```{r, echo = FALSE, echo= FALSE, include=FALSE}
+anti_join(per_state_county, state_county)
+```
+
+
+```{r, echo = FALSE, echo= FALSE, include=FALSE}
+#'*state map*
+state_map <- per_state_county %>% 
+  distinct(state_name) %>%
+  inner_join(.,map_data("state"), by=c("state_name"="region"))
+
+state_map
+
+```
+
+
+```{r, echo = FALSE, include=FALSE}
+map_data <- left_join(per_state_county, state_map)
+
+map_data
+
+```
+
+
+```{r, echo=FALSE, include= FALSE}
+#for county level map
+#county_map <- state_county %>%
+ # distinct(state_n) %>% 
+  #inner_join(.,map_data("county"), by=c("state"="region"))
+
+#county_map
+
+```
+
+```{r, echo = FALSE, include=FALSE}
+#map_data1 <- left_join(per_state_county, county_map)
+
+#map_data1
+
+```
+
+\newpage
+## Research Question 5 
+
+**"Geospatial visualization - Which states have the highest count of wildfires against the cause of fire"**
+
+
+**Potential Use Case:** 
+
+* This geospatial map depicts the count of wildfire incidents with respect to the cause of the fire by "Arson". 
+
+* It is interesting to note that South region has the highest concentration of fires induced by "Arson". Georgia seems to have a concerning number of Arson induced wildfires. 
+
+* This makes it noteworthy for the concerned regional agencies of this region to monitor the area and deploy preventive measures against such unlawful practices. 
+\
+
+```{r, echo=FALSE, warning= FALSE, fig.align='center'}
+#'*geography of wildfires in each state of US*
+map_data %>% 
+  mutate(n=if_else(is.na(n),0L,n)) %>%
+  filter(stat_cause_descr == "Arson") %>% 
+  arrange(desc(n)) %>%
+  ggplot(aes(x=long,y=lat, fill=n, group=group)) +
+  geom_polygon(color="black", size = 0.3) +
+  geom_polygon(data=state_map, 
+               aes(x=long, y=lat, group = group), 
+               fill = NA, 
+               color = "black", 
+               size = 0.5) +
+  scale_fill_gradient(name = "#Number of Wildfires \n with respect to \ncause of fire", 
+                      low="light yellow", 
+                      high="red", 
+                      limits = c(0,NA)) +
+  labs(title="Wildfires in US caused by Arson from 2011 to 2015\n") +
+  coord_quickmap() +
+  theme_void() +
+  theme(
+    plot.title = element_text(face="bold", size = 18),
+    legend.position = "right"
+    )
+
+```
+\
+* With respect to states filtered by the cause of fire as "Lightning & Power lines", the West region and Florida have a substantially high number of wildfire incidents induced due to electricity. Florida seems to have high wildfire incidents caused by "Electricity" & "Arson"
+
+
+\newpage
+# Conclusion 
+
+
+## Summary of Results
+
+- Most number of wildfire incidents across the US are caused by Debris Burning, Arson. Although the average incidents are due to Lightning(especially during Summer) causes the most damage. 
+- As per this study, smaller southern US states like Georgia, Florida and Alaska must be more prepared with the right equipment and safety measures to fight wildfires.
+- Our Geo spatial map will be helpful to figure out which regions of the country to focus more, with regards to the cause of fire.
+- Local government departments in regions such as Alaska need to be vigilant as its land has been recklessly burnt by these wildfires.
+- The MLR model of this study shows that a 12% of variation in the response variable can be explained by the predictors that were considered, but with further tuning and testing with other variables and by backward AIC we would be able to find a better r-squared and p-value.
+- Finally, by educating people about local regulations/guidelines regarding Arson, trash burning, being cautious during campfire, and by implementing strict regulations against people committing Arson, we would be able to contain the prevent such human caused fires.
+
+
+\newpage
+#  References
+
+* 650 Lecture slides and notes by Dr.Eric Fox, Fall 2022
+* R for Data Science by Hardley Wickham
+* R Markdown LATEX Cookbook by bookdown.org
+* Geospatial visualization by towardsdatascience.com
+
+
+# Appendix
+\
+For the whole R script, visit <https://github.com/vijayaraghavan-radhika/650_final_project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
