@@ -1,12 +1,16 @@
-# 650_project - Analyzing US Wildfire incidents
-Stat 650 - Advanced R for Data Science
+# Analyzing US Wildfire incidents
+Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 
-Statistical Data Analysis of US Wildfire incidents
+# Methods used
+| Packages used  |  `ggplot2`, `dplyr`, `readr`, `lubridate`, `tidygeocoder`, `forcats` | 
+| ------------- | ------------- | 
+| Concepts used |  `relational data/joins`, `Factors`, `ggplot`, `data import`, `dates and times`, `MLR model`, `factors` |
 
 
 # Data set
 
-The cleaned data set consist of 188,017 observations on the following 17 variables
+The SQLite data set was obtained at Kaggle(1.88 Million US Wildfires - https://www.kaggle.com/datasets/rtatman/188-million-us-wildfires).
+The cleaned data set consists of 188,017 observations on the following 17 variables
 
 | Column name     | Description      |   
 | ------------- | ------------- | 
