@@ -1,7 +1,7 @@
 # Analyzing US Wildfire incidents
 Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 
-# Methods used
+## Methods used
 
 | Tools  |  Methodologies | 
 | ------------- | ------------- | 
@@ -9,7 +9,7 @@ Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 | Concepts used |  `relational data/joins`, `Factors`, `ggplot`, `data import`, `dates and times`, `MLR model`, `factors` |
 
 
-# Data set
+## Data set
 
 The SQLite data set was obtained at Kaggle(1.88 Million US Wildfires - https://www.kaggle.com/datasets/rtatman/188-million-us-wildfires).
 The cleaned data set consists of 188,017 observations on the following 17 variables
