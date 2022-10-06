@@ -1,10 +1,12 @@
-# 650_final_project
+# 650_project - Analyzing US Wildfire incidents
 Stat 650 - Advanced R for Data Science
 
 Statistical Data Analysis of US Wildfire incidents
 
 
-The cleaned data set consist of 188,017 observations on the following 16 variables
+# Data set
+
+The cleaned data set consist of 188,017 observations on the following 17 variables
 
 | Column name     | Description      |   
 | ------------- | ------------- | 
