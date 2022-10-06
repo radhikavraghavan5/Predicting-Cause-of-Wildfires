@@ -3,6 +3,9 @@ Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 
 # Methods used
 
+| Tools  |  Methodologies | 
+
+| ------------- | ------------- | 
 | Packages used  |  `ggplot2`, `dplyr`, `readr`, `lubridate`, `tidygeocoder`, `forcats` | 
 | ------------- | ------------- | 
 | Concepts used |  `relational data/joins`, `Factors`, `ggplot`, `data import`, `dates and times`, `MLR model`, `factors` |
