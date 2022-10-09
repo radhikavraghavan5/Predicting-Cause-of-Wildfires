@@ -9,7 +9,7 @@ This SQLite dataset includes Wildfires incident reports filed by various federal
 | Tools  |  Methodologies | 
 | ------------- | ------------- | 
 | Packages   |  `ggplot2`, `dplyr`, `readr`, `lubridate`,`tidygeocoder`, `forcats` |
-| Tools  |  `relational data/joins`, `ggplot`, `data import`, `dates and times`, `geospatial vizualization`, `factors`, `heat map` |
+| Tools  |  `relational data/joins`, `ggplot`, `data import`, `dates and times`, `geospatial vizualization`, `factors`|
 
 
 ## Data Description
