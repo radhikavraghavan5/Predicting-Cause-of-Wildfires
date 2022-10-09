@@ -1,4 +1,4 @@
-# Analyzing US Wildfire incidents
+# Analyzing Wildfire incidents in the US
 Statistical Data Analysis of Wildfire incidents from 2011 to 2015 in the US
 
 ## Abstract
